@@ -29,16 +29,33 @@ convertActivities <- function(activity) {
            '5' = 'Standing',
            '6' = 'Laying')
 }
-
 Labeledtest$Activity <- sapply(Labeledtest$Activity,convertActivities)
 Labeledtrain$Activity <- sapply(Labeledtrain$Activity,convertActivities)
+
 Merged <- merge(Labeledtest,Labeledtrain,all=T)
+
 SdMean <- sapply(select(Merged,-c('index','Activity','Subjectnumber')),function(x) c(sd=sd(x), mean=mean(x)))
 
 meanByActivitySubject <- function(column) {
-    tapply(column,list(Merged$Activity,Merged$Subjectnumber),mean)
+    df <- tapply(column,list(Merged$Activity,Merged$Subjectnumber),mean) %>% data.frame()
+    tempnames <- names(df)
+    df <- rename(df,Subject=tempnames)
+    df
  
 }
 MeanByGroup <- lapply(select(Merged,-c('index','Activity','Subjectnumber')),meanByActivitySubject)
 
 
+for (i in 1:length(MeanByGroup)) {
+    if (i==1) {
+        df <- MeanByGroup[[i]]
+        df <- mutate(df,Element=names(MeanByGroup[i]),Activity=row.names(MeanByGroup[[i]])) 
+    }
+    else {
+        df <- MeanByGroup[[i]] %>% mutate(Element=names(MeanByGroup[i]),Activity=row.names(MeanByGroup[[i]])) %>% merge(df,all=T)
+    }
+}
+
+levels <- paste('V',1:length(MeanByGroup),sep='')
+df$Element <- factor(df$Element,levels)
+df <- select(df[order(df$Activity,df$Element),],c('Activity','Element',1:30))
